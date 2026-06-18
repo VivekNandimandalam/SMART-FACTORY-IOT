@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Factory Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --panel: rgba(13, 20, 42, 0.88);
+            --panel-border: rgba(140, 161, 255, 0.18);
+            --text: #eef2ff;
+            --muted: #94a3b8;
+            --accent: #56d4ff;
+            --good: #49e58d;
+            --warn: #ffd166;
+            --danger: #ff6b6b;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Space Grotesk", sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(86, 212, 255, 0.24), transparent 28%),
+                radial-gradient(circle at right 20%, rgba(73, 229, 141, 0.16), transparent 24%),
+                linear-gradient(180deg, #07111e 0%, #0b1020 100%);
+        }
+
+        .shell { max-width: 1450px; margin: 0 auto; padding: 32px 20px 40px; }
+        .hero {
+            display: flex; align-items: end; justify-content: space-between; gap: 24px;
+            margin-bottom: 24px; padding: 24px; border: 1px solid var(--panel-border); border-radius: 24px;
+            background: linear-gradient(135deg, rgba(13, 20, 42, 0.94), rgba(13, 20, 42, 0.72));
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        }
+
+        h1 { margin: 0; font-size: clamp(2rem, 3vw, 3.4rem); letter-spacing: -0.04em; }
+        .subtitle { margin: 10px 0 0; color: var(--muted); max-width: 720px; line-height: 1.5; }
+        .status-pill {
+            padding: 10px 14px; border-radius: 999px; background: rgba(86, 212, 255, 0.12);
+            border: 1px solid rgba(86, 212, 255, 0.22); color: var(--accent); font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .grid {
+            display: grid; gap: 18px; grid-template-columns: repeat(12, minmax(0, 1fr));
+        }
+
+        .card {
+            grid-column: span 4;
+            background: var(--panel); border: 1px solid var(--panel-border); border-radius: 22px;
+            padding: 18px; backdrop-filter: blur(14px); min-height: 290px;
+        }
+
+        .card.wide { grid-column: span 6; }
+        .card.full { grid-column: span 12; min-height: 240px; }
+        .card h3 { margin: 0 0 8px; font-size: 1rem; color: #dbeafe; }
+        .metric { font-size: 2.3rem; font-weight: 700; margin: 8px 0 14px; color: var(--good); }
+        .metric.neutral { color: var(--accent); }
+        .metric.warn { color: var(--warn); }
+        .metric.danger { color: var(--danger); }
+        .meta { color: var(--muted); font-size: 0.92rem; margin-bottom: 12px; }
+        canvas { width: 100% !important; max-height: 175px; }
+
+        .alerts {
+            display: grid; gap: 10px; max-height: 330px; overflow: auto; padding-right: 4px;
+        }
+        .alert {
+            padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(255, 107, 107, 0.24);
+            background: rgba(255, 107, 107, 0.1); color: #ffd6d6;
+        }
+        .alert small { display: block; color: #ffb0b0; margin-top: 4px; }
+
+        @media (max-width: 1100px) {
+            .card, .card.wide { grid-column: span 6; }
+        }
+
+        @media (max-width: 720px) {
+            .hero { flex-direction: column; align-items: start; }
+            .card, .card.wide, .card.full { grid-column: span 12; }
+            .metric { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <div>
+                <h1>Smart Factory Predictive Maintenance</h1>
+                <p class="subtitle">Fog-level anomaly detection, cloud persistence, and live operational visibility for a connected factory line.</p>
+            </div>
+            <div class="status-pill">Live monitoring dashboard</div>
+        </section>
+
+        <section class="grid">
+            <div class="card">
+                <h3>Vibration</h3>
+                <div class="metric neutral" id="vib-value">--</div>
+                <div class="meta" id="vib-meta">Waiting for data</div>
+                <canvas id="vib-chart"></canvas>
+            </div>
+            <div class="card">
+                <h3>Temperature</h3>
+                <div class="metric neutral" id="temp-value">--</div>
+                <div class="meta" id="temp-meta">Waiting for data</div>
+                <canvas id="temp-chart"></canvas>
+            </div>
+            <div class="card">
+                <h3>Pressure</h3>
+                <div class="metric neutral" id="pres-value">--</div>
+                <div class="meta" id="pres-meta">Waiting for data</div>
+                <canvas id="pres-chart"></canvas>
+            </div>
+            <div class="card">
+                <h3>Humidity</h3>
+                <div class="metric neutral" id="hum-value">--</div>
+                <div class="meta" id="hum-meta">Waiting for data</div>
+                <canvas id="hum-chart"></canvas>
+            </div>
+            <div class="card">
+                <h3>Power</h3>
+                <div class="metric neutral" id="pwr-value">--</div>
+                <div class="meta" id="pwr-meta">Waiting for data</div>
+                <canvas id="pwr-chart"></canvas>
+            </div>
+            <div class="card">
+                <h3>Recent Alerts</h3>
+                <div class="alerts" id="alerts-list"><div class="meta">Loading alerts...</div></div>
+            </div>
+            <div class="card full">
+                <h3>Operational Timeline</h3>
+                <div class="meta">Latest readings across the five sensor streams</div>
+                <canvas id="overview-chart"></canvas>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/charts.js"></script>
+</body>
+</html>
