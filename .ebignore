@@ -1,0 +1,12 @@
+.git
+.github
+.pytest_cache
+.venv
+__pycache__
+backend/**/__pycache__
+fog_node/__pycache__
+sensors/__pycache__
+tests/__pycache__
+backend/data/*.json
+*.zip
+*.docx

@@ -25,10 +25,9 @@ python app.py
 Open http://localhost:5000
 
 Production dashboard hosting:
-- Use the root `Procfile` with `gunicorn backend.api.app:app`
-- Make sure the hosting platform provides AWS credentials through an instance role or equivalent secret store
-- Set `AWS_REGION`, `DYNAMODB_TABLE`, `SQS_QUEUE_URL`, `USE_AWS=true`, and `API_ENDPOINT` in the host environment
-- For AWS App Runner, use the root `Dockerfile` and health check path `/health`
+- Use the root `application.py` as the Elastic Beanstalk WSGI entry point
+- Set `AWS_REGION`, `DYNAMODB_TABLE`, `SQS_QUEUE_URL`, `USE_AWS=true`, and `API_ENDPOINT` in the Beanstalk environment
+- Use the Python platform in Elastic Beanstalk and open the generated public environment URL
 
 If you are using AWS:
 - SQS_QUEUE_URL must point to the existing queue.
