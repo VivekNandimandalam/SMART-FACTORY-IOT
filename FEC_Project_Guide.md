@@ -623,14 +623,14 @@ aws dynamodb create-table \
   --attribute-definitions AttributeName=sensor_id,AttributeType=S AttributeName=timestamp,AttributeType=S \
   --key-schema AttributeName=sensor_id,KeyType=HASH AttributeName=timestamp,KeyType=RANGE \
   --billing-mode PAY_PER_REQUEST \
-  --region eu-west-1
+  --region us-east-1
 ```
 
 ### 6.3 Create `.env` File
 ```bash
 # In your project root, create .env:
-AWS_REGION=eu-west-1
-SQS_QUEUE_URL=https://sqs.eu-west-1.amazonaws.com/YOUR_ACCOUNT_ID/smart-factory-queue
+AWS_REGION=us-east-1
+SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/YOUR_ACCOUNT_ID/smart-factory-queue
 DYNAMODB_TABLE=SensorReadings
 API_ENDPOINT=https://YOUR_API_GATEWAY_URL/ingest
 DISPATCH_INTERVAL=10
@@ -646,7 +646,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-region = os.getenv("AWS_REGION", "eu-west-1")
+region = os.getenv("AWS_REGION", "us-east-1")
 
 def check_sqs():
     sqs = boto3.client("sqs", region_name=region)
@@ -719,24 +719,24 @@ def lambda_handler(event, context):
 ```bash
 # Zip the lambda
 cd backend/lambda
-zip function.zip handler.py
+zip function.zip handler.py lambda_function.py
 
 # Create Lambda function
 aws lambda create-function \
   --function-name smart-factory-processor \
-  --runtime python3.11 \
+  --runtime python3.14 \
   --role arn:aws:iam::YOUR_ACCOUNT_ID:role/lambda-role \
-  --handler handler.lambda_handler \
+    --handler lambda_function.lambda_handler \
   --zip-file fileb://function.zip \
   --environment Variables="{DYNAMODB_TABLE=SensorReadings}" \
-  --region eu-west-1
+    --region us-east-1
 
 # Connect Lambda to SQS trigger
 aws lambda create-event-source-mapping \
   --function-name smart-factory-processor \
-  --event-source-arn arn:aws:sqs:eu-west-1:YOUR_ACCOUNT_ID:smart-factory-queue \
+    --event-source-arn arn:aws:sqs:us-east-1:YOUR_ACCOUNT_ID:smart-factory-queue \
   --batch-size 10 \
-  --region eu-west-1
+    --region us-east-1
 ```
 
 ---
@@ -934,11 +934,11 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: us-east-1
       - name: Deploy Lambda
         run: |
           cd backend/lambda
-          zip function.zip handler.py
+          zip function.zip handler.py lambda_function.py
           aws lambda update-function-code \
             --function-name smart-factory-processor \
             --zip-file fileb://function.zip

@@ -28,11 +28,11 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: us-east-1
       - name: Deploy Lambda
         run: |
           cd backend/lambda
-          zip function.zip handler.py
+          zip function.zip handler.py lambda_function.py
           aws lambda update-function-code \
             --function-name smart-factory-processor \
             --zip-file fileb://function.zip

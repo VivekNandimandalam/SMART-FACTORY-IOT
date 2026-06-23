@@ -84,7 +84,8 @@ def _aws_available():
     if not USE_AWS:
         return False
     try:
-        dynamodb.list_tables(Limit=1)
+        table = dynamodb.Table(TABLE_NAME)
+        table.table_status
         return True
     except (NoCredentialsError, ClientError, BotoCoreError):
         return False
@@ -93,6 +94,11 @@ def _aws_available():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 
 @app.route("/api/latest")
