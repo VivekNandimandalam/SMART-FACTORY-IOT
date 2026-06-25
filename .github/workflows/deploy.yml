@@ -92,9 +92,11 @@ jobs:
           done
 
       - name: Deploy Lambda
+        env:
+          LAMBDA_EXECUTION_ROLE_ARN: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
         run: |
-          if [ -n "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" ]; then
-            LAMBDA_ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
+          if [ -n "$LAMBDA_EXECUTION_ROLE_ARN" ]; then
+            LAMBDA_ROLE_ARN="$LAMBDA_EXECUTION_ROLE_ARN"
           else
             LAMBDA_ROLE_ARN=$(aws iam get-role \
               --role-name LabRole \
@@ -107,51 +109,36 @@ jobs:
             exit 1
           fi
 
-          if [ -n "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" ]; then
-            echo "LAMBDA_ROLE_ARN=${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" >> "$GITHUB_ENV"
-          else
-            echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> "$GITHUB_ENV"
-          fi
-
           if aws lambda get-function --function-name "$LAMBDA_FUNCTION_NAME" >/dev/null 2>&1; then
             aws lambda update-function-code \
               --function-name "$LAMBDA_FUNCTION_NAME" \
               --zip-file fileb://backend/lambda/function.zip
+
+            # Wait after code update before changing config
+            aws lambda wait function-updated \
+              --function-name "$LAMBDA_FUNCTION_NAME"
+
           else
             aws lambda create-function \
               --function-name "$LAMBDA_FUNCTION_NAME" \
               --runtime python3.11 \
-              --handler lambda_function.lambda_handler \
+              --handler handler.lambda_handler \
               --role "$LAMBDA_ROLE_ARN" \
               --zip-file fileb://backend/lambda/function.zip \
               --timeout 30 \
               --memory-size 256 \
-              --environment "Variables={DYNAMODB_TABLE=$DYNAMODB_TABLE}"
-          fi
+              --environment "Variables={TABLE_NAME=$DYNAMODB_TABLE}"
 
-          for _ in $(seq 1 30); do
-            LAMBDA_STATE=$(aws lambda get-function \
-              --function-name "$LAMBDA_FUNCTION_NAME" \
-              --query 'Configuration.State' \
-              --output text)
-
-            echo "Lambda state: ${LAMBDA_STATE}"
-            if [ "$LAMBDA_STATE" = "Active" ]; then
-              break
-            fi
-            sleep 10
-          done
-
-          if [ "$LAMBDA_STATE" != "Active" ]; then
-            echo "Lambda did not become Active in time."
-            exit 1
+            # Wait after creation before changing config
+            aws lambda wait function-updated \
+              --function-name "$LAMBDA_FUNCTION_NAME"
           fi
 
           aws lambda update-function-configuration \
             --function-name "$LAMBDA_FUNCTION_NAME" \
-            --handler lambda_function.lambda_handler \
+            --handler handler.lambda_handler \
             --runtime python3.11 \
-            --environment "Variables={DYNAMODB_TABLE=${{ env.DYNAMODB_TABLE }}}"
+            --environment "Variables={TABLE_NAME=$DYNAMODB_TABLE}"
 
       - name: Confirm cloud endpoints
         run: |
