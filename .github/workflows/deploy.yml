@@ -94,12 +94,23 @@ jobs:
       - name: Deploy Lambda
         run: |
           if [ -n "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" ]; then
-            echo "LAMBDA_ROLE_ARN=${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" >> "$GITHUB_ENV"
+            LAMBDA_ROLE_ARN="${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}"
           else
-            aws iam get-role \
+            LAMBDA_ROLE_ARN=$(aws iam get-role \
               --role-name LabRole \
               --query 'Role.Arn' \
-              --output text | sed 's/^/LAMBDA_ROLE_ARN=/' >> "$GITHUB_ENV"
+              --output text)
+          fi
+
+          if [ -z "$LAMBDA_ROLE_ARN" ] || [ "$LAMBDA_ROLE_ARN" = "None" ]; then
+            echo "Unable to resolve a Lambda execution role ARN."
+            exit 1
+          fi
+
+          if [ -n "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" ]; then
+            echo "LAMBDA_ROLE_ARN=${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" >> "$GITHUB_ENV"
+          else
+            echo "LAMBDA_ROLE_ARN=$LAMBDA_ROLE_ARN" >> "$GITHUB_ENV"
           fi
 
           if aws lambda get-function --function-name "$LAMBDA_FUNCTION_NAME" >/dev/null 2>&1; then
