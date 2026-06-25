@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 
 import boto3
 
+TABLE_NAME = os.environ["TABLE_NAME"]
 
-TABLE_NAME = os.environ.get("DYNAMODB_TABLE", "SensorReadings")
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(TABLE_NAME)
 
@@ -40,3 +40,4 @@ def lambda_handler(event, context):
 
     print(f"Processed: {processed} readings, Errors: {errors}")
     return {"statusCode": 200, "processed": processed, "errors": errors}
+
