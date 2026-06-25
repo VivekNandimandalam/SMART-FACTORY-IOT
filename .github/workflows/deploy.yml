@@ -92,9 +92,36 @@ jobs:
 
       - name: Deploy Lambda
         run: |
-          aws lambda update-function-code \
+          if [ -n "${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" ]; then
+            echo "LAMBDA_ROLE_ARN=${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}" >> "$GITHUB_ENV"
+          else
+            aws iam get-role \
+              --role-name LabRole \
+              --query 'Role.Arn' \
+              --output text | sed 's/^/LAMBDA_ROLE_ARN=/' >> "$GITHUB_ENV"
+          fi
+
+          if aws lambda get-function --function-name "$LAMBDA_FUNCTION_NAME" >/dev/null 2>&1; then
+            aws lambda update-function-code \
+              --function-name "$LAMBDA_FUNCTION_NAME" \
+              --zip-file fileb://backend/lambda/function.zip
+          else
+            aws lambda create-function \
+              --function-name "$LAMBDA_FUNCTION_NAME" \
+              --runtime python3.11 \
+              --handler lambda_function.lambda_handler \
+              --role "$LAMBDA_ROLE_ARN" \
+              --zip-file fileb://backend/lambda/function.zip \
+              --timeout 30 \
+              --memory-size 256 \
+              --environment "Variables={DYNAMODB_TABLE=$DYNAMODB_TABLE}"
+          fi
+
+          aws lambda update-function-configuration \
             --function-name "$LAMBDA_FUNCTION_NAME" \
-            --zip-file fileb://backend/lambda/function.zip
+            --handler lambda_function.lambda_handler \
+            --runtime python3.11 \
+            --environment "Variables={DYNAMODB_TABLE=$DYNAMODB_TABLE}"
 
       - name: Confirm cloud endpoints
         run: |
