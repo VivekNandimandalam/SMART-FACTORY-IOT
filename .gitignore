@@ -6,3 +6,12 @@ __pycache__/
 backend/data/*.json
 backend/lambda/lambda_deployment.zip
 lambda_deployment.zip
+credentials.txt
+labsuser.pem
+labsuser.ppk
+ssourl.txt
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

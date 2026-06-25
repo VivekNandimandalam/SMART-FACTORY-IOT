@@ -1,9 +1,17 @@
 const SENSOR_CONFIG = {
-    VIB_001: { label: "Vibration", valueId: "vib-value", metaId: "vib-meta", chartId: "vib-chart", color: "#56d4ff" },
-    TEMP_001: { label: "Temperature", valueId: "temp-value", metaId: "temp-meta", chartId: "temp-chart", color: "#ff8fab" },
-    PRES_001: { label: "Pressure", valueId: "pres-value", metaId: "pres-meta", chartId: "pres-chart", color: "#49e58d" },
-    HUM_001: { label: "Humidity", valueId: "hum-value", metaId: "hum-meta", chartId: "hum-chart", color: "#9bdbff" },
-    PWR_001: { label: "Power", valueId: "pwr-value", metaId: "pwr-meta", chartId: "pwr-chart", color: "#ffd166" },
+    VIB_001: { label: "Vibration", valueId: "vib-value", metaId: "vib-meta", chartId: "vib-chart", color: "#56d4ff", statusId: "vib-status", thresholdId: "vib-threshold", thresholdLabel: "below 15.0 mm/s" },
+    TEMP_001: { label: "Temperature", valueId: "temp-value", metaId: "temp-meta", chartId: "temp-chart", color: "#ff8fab", statusId: "temp-status", thresholdId: "temp-threshold", thresholdLabel: "below 85.0 celsius" },
+    PRES_001: { label: "Pressure", valueId: "pres-value", metaId: "pres-meta", chartId: "pres-chart", color: "#49e58d", statusId: "pres-status", thresholdId: "pres-threshold", thresholdLabel: "above 20.0 bar" },
+    HUM_001: { label: "Humidity", valueId: "hum-value", metaId: "hum-meta", chartId: "hum-chart", color: "#9bdbff", statusId: "hum-status", thresholdId: "hum-threshold", thresholdLabel: "below 80.0 percent" },
+    PWR_001: { label: "Power", valueId: "pwr-value", metaId: "pwr-meta", chartId: "pwr-chart", color: "#ffd166", statusId: "pwr-status", thresholdId: "pwr-threshold", thresholdLabel: "below 90.0 kW" },
+};
+
+const THRESHOLDS = {
+    VIB_001: { type: "max", value: 15.0, units: "mm/s" },
+    TEMP_001: { type: "max", value: 85.0, units: "celsius" },
+    PRES_001: { type: "min", value: 20.0, units: "bar" },
+    HUM_001: { type: "max", value: 80.0, units: "percent" },
+    PWR_001: { type: "max", value: 90.0, units: "kW" },
 };
 
 const histories = {};
@@ -77,15 +85,95 @@ function ensureChart(sensorId) {
     return charts[sensorId];
 }
 
+function getStatus(sensorId, reading) {
+    const threshold = THRESHOLDS[sensorId];
+    if (!reading || !threshold) {
+        return {
+            label: "Normal",
+            state: "normal",
+            description: "Safe operating range",
+        };
+    }
+
+    const value = Number(reading.value);
+    if (reading.anomaly) {
+        return {
+            label: "Critical",
+            state: "critical",
+            description: "Threshold crossed - service or replace parts",
+        };
+    }
+
+    if (threshold.type === "max") {
+        const warningCutoff = threshold.value * 0.85;
+        if (value >= threshold.value) {
+            return {
+                label: "Critical",
+                state: "critical",
+                description: "Threshold crossed - service or replace parts",
+            };
+        }
+        if (value >= warningCutoff) {
+            return {
+                label: "Warning",
+                state: "warning",
+                description: `Approaching ${threshold.value} ${threshold.units}`,
+            };
+        }
+    }
+
+    if (threshold.type === "min") {
+        const warningCutoff = threshold.value * 1.15;
+        if (value <= threshold.value) {
+            return {
+                label: "Critical",
+                state: "critical",
+                description: "Threshold crossed - service or replace parts",
+            };
+        }
+        if (value <= warningCutoff) {
+            return {
+                label: "Warning",
+                state: "warning",
+                description: `Approaching ${threshold.value} ${threshold.units}`,
+            };
+        }
+    }
+
+    return {
+        label: "Normal",
+        state: "normal",
+        description: "Safe operating range",
+    };
+}
+
 function updateSensorCard(sensorId, reading) {
     const config = SENSOR_CONFIG[sensorId];
     const valueElement = document.getElementById(config.valueId);
     const metaElement = document.getElementById(config.metaId);
+    const statusElement = document.getElementById(config.statusId);
+    const thresholdElement = document.getElementById(config.thresholdId);
+    const cardElement = valueElement ? valueElement.closest(".card") : null;
     if (!valueElement || !metaElement || !reading) return;
 
+    const status = getStatus(sensorId, reading);
+
     valueElement.textContent = `${reading.value} ${reading.unit}`;
-    valueElement.className = `metric ${reading.anomaly ? "warn" : "neutral"}`;
-    metaElement.textContent = reading.timestamp ? `Updated ${new Date(reading.timestamp).toLocaleTimeString()}` : "Updated recently";
+    valueElement.className = `metric ${status.state === "critical" ? "danger" : status.state === "warning" ? "warn" : "neutral"}`;
+    if (statusElement) {
+        statusElement.textContent = status.label;
+        statusElement.className = `status-chip ${status.state}`;
+    }
+    if (thresholdElement) {
+        thresholdElement.textContent = `Safe: ${config.thresholdLabel}`;
+    }
+    if (cardElement) {
+        cardElement.classList.remove("normal", "warning", "critical");
+        cardElement.classList.add(status.state);
+    }
+    metaElement.textContent = reading.timestamp
+        ? `Updated ${new Date(reading.timestamp).toLocaleTimeString()} • ${status.description}`
+        : status.description;
 
     const chart = ensureChart(sensorId);
     if (!chart) return;

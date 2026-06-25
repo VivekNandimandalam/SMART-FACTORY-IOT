@@ -1,7 +1,13 @@
 .git
 .github
+.elasticbeanstalk
 .pytest_cache
 .venv
+.env
+credentials.txt
+labsuser.pem
+labsuser.ppk
+ssourl.txt
 __pycache__
 backend/**/__pycache__
 fog_node/__pycache__

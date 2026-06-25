@@ -2,37 +2,108 @@ name: Deploy Smart Factory IoT
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  EB_APPLICATION_NAME: smart-factory-iot
+  EB_ENVIRONMENT_NAME: smart-factory-iot-env
+  LAMBDA_FUNCTION_NAME: smart-factory-processor
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+
       - name: Install dependencies
         run: pip install -r requirements.txt
+
       - name: Run tests
         run: pytest tests/ -v
 
-  deploy-lambda:
+  deploy:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Prepare version label
+        run: echo "VERSION_LABEL=app-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Package application and Lambda
+        run: |
+          git archive --format=zip --output app.zip HEAD
+          cd backend/lambda
+          zip -q function.zip handler.py lambda_function.py
+
+      - name: Deploy Elastic Beanstalk application
+        run: |
+          S3_BUCKET=$(aws elasticbeanstalk create-storage-location --query 'S3Bucket' --output text)
+          S3_KEY="releases/${VERSION_LABEL}.zip"
+
+          aws s3 cp app.zip "s3://${S3_BUCKET}/${S3_KEY}"
+
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APPLICATION_NAME" \
+            --version-label "$VERSION_LABEL" \
+            --source-bundle S3Bucket="$S3_BUCKET",S3Key="$S3_KEY" \
+            --process
+
+          aws elasticbeanstalk update-environment \
+            --environment-name "$EB_ENVIRONMENT_NAME" \
+            --version-label "$VERSION_LABEL"
+
+          for _ in $(seq 1 30); do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENVIRONMENT_NAME" \
+              --query 'Environments[0].Status' \
+              --output text)
+            HEALTH=$(aws elasticbeanstalk describe-environments \
+              --environment-names "$EB_ENVIRONMENT_NAME" \
+              --query 'Environments[0].Health' \
+              --output text)
+
+            echo "Elastic Beanstalk status: ${STATUS}, health: ${HEALTH}"
+            if [ "$STATUS" = "Ready" ] && [ "$HEALTH" = "Green" ]; then
+              break
+            fi
+            sleep 20
+          done
+
       - name: Deploy Lambda
         run: |
-          cd backend/lambda
-          zip function.zip handler.py lambda_function.py
           aws lambda update-function-code \
-            --function-name smart-factory-processor \
-            --zip-file fileb://function.zip
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --zip-file fileb://backend/lambda/function.zip
+
+      - name: Confirm cloud endpoints
+        run: |
+          aws elasticbeanstalk describe-environments \
+            --environment-names "$EB_ENVIRONMENT_NAME" \
+            --query 'Environments[0].[CNAME,Status,Health]' \
+            --output table
+
+          aws lambda get-function \
+            --function-name "$LAMBDA_FUNCTION_NAME" \
+            --query 'Configuration.[FunctionName,Runtime,Handler,State]' \
+            --output table

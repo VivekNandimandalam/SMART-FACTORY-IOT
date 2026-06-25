@@ -49,6 +49,46 @@
             white-space: nowrap;
         }
 
+        .legend {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin: 0 0 18px;
+        }
+
+        .legend-item {
+            border-radius: 18px;
+            padding: 14px 16px;
+            border: 1px solid var(--panel-border);
+            background: rgba(13, 20, 42, 0.72);
+        }
+
+        .legend-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 6px;
+            font-weight: 700;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .dot.good { background: var(--good); box-shadow: 0 0 0 4px rgba(73, 229, 141, 0.18); }
+        .dot.warn { background: var(--warn); box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.18); }
+        .dot.danger { background: var(--danger); box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.18); }
+
+        .legend-item p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.45;
+            font-size: 0.95rem;
+        }
+
         .grid {
             display: grid; gap: 18px; grid-template-columns: repeat(12, minmax(0, 1fr));
         }
@@ -57,7 +97,13 @@
             grid-column: span 4;
             background: var(--panel); border: 1px solid var(--panel-border); border-radius: 22px;
             padding: 18px; backdrop-filter: blur(14px); min-height: 290px;
+            position: relative;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
         }
+
+        .card.normal { border-color: rgba(73, 229, 141, 0.28); }
+        .card.warning { border-color: rgba(255, 209, 102, 0.38); box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.16) inset; }
+        .card.critical { border-color: rgba(255, 107, 107, 0.5); box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.18) inset, 0 16px 38px rgba(255, 107, 107, 0.1); }
 
         .card.wide { grid-column: span 6; }
         .card.full { grid-column: span 12; min-height: 240px; }
@@ -67,6 +113,26 @@
         .metric.warn { color: var(--warn); }
         .metric.danger { color: var(--danger); }
         .meta { color: var(--muted); font-size: 0.92rem; margin-bottom: 12px; }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            margin-bottom: 12px;
+            border: 1px solid transparent;
+        }
+        .status-chip.normal { color: var(--good); background: rgba(73, 229, 141, 0.12); border-color: rgba(73, 229, 141, 0.22); }
+        .status-chip.warning { color: var(--warn); background: rgba(255, 209, 102, 0.12); border-color: rgba(255, 209, 102, 0.25); }
+        .status-chip.critical { color: var(--danger); background: rgba(255, 107, 107, 0.12); border-color: rgba(255, 107, 107, 0.26); }
+        .threshold-note {
+            margin: -2px 0 12px;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
         canvas { width: 100% !important; max-height: 175px; }
 
         .alerts {
@@ -99,35 +165,60 @@
             <div class="status-pill">Live monitoring dashboard</div>
         </section>
 
+        <section class="legend" aria-label="Threshold legend">
+            <div class="legend-item">
+                <div class="legend-title"><span class="dot good"></span>Normal</div>
+                <p>Reading is inside the safe operating range. No action needed right now.</p>
+            </div>
+            <div class="legend-item">
+                <div class="legend-title"><span class="dot warn"></span>Warning</div>
+                <p>Reading is approaching the threshold. Plan inspection or maintenance soon.</p>
+            </div>
+            <div class="legend-item">
+                <div class="legend-title"><span class="dot danger"></span>Critical</div>
+                <p>Threshold crossed. The machine should be checked, serviced, or repaired.</p>
+            </div>
+        </section>
+
         <section class="grid">
             <div class="card">
                 <h3>Vibration</h3>
+                <div class="status-chip normal" id="vib-status">Normal</div>
                 <div class="metric neutral" id="vib-value">--</div>
                 <div class="meta" id="vib-meta">Waiting for data</div>
+                <div class="threshold-note" id="vib-threshold">Safe: below 15.0 mm/s</div>
                 <canvas id="vib-chart"></canvas>
             </div>
             <div class="card">
                 <h3>Temperature</h3>
+                <div class="status-chip normal" id="temp-status">Normal</div>
                 <div class="metric neutral" id="temp-value">--</div>
                 <div class="meta" id="temp-meta">Waiting for data</div>
+                <div class="threshold-note" id="temp-threshold">Safe: below 85.0 celsius</div>
                 <canvas id="temp-chart"></canvas>
             </div>
             <div class="card">
                 <h3>Pressure</h3>
+                <div class="status-chip normal" id="pres-status">Normal</div>
                 <div class="metric neutral" id="pres-value">--</div>
                 <div class="meta" id="pres-meta">Waiting for data</div>
+                <div class="threshold-note" id="pres-threshold">Safe: above 20.0 bar</div>
                 <canvas id="pres-chart"></canvas>
             </div>
             <div class="card">
                 <h3>Humidity</h3>
+                <div class="status-chip normal" id="hum-status">Normal</div>
                 <div class="metric neutral" id="hum-value">--</div>
                 <div class="meta" id="hum-meta">Waiting for data</div>
+                <div class="threshold-note" id="hum-threshold">Safe: below 80.0 percent</div>
                 <canvas id="hum-chart"></canvas>
             </div>
             <div class="card">
                 <h3>Power</h3>
+                <div class="status-chip normal" id="pwr-status">Normal</div>
                 <div class="metric neutral" id="pwr-value">--</div>
                 <div class="meta" id="pwr-meta">Waiting for data</div>
+                <div class="threshold-note" id="pwr-threshold">Safe: below 90.0 kW</div>
                 <canvas id="pwr-chart"></canvas>
             </div>
             <div class="card">

@@ -22,7 +22,7 @@ app = Flask(
     static_folder=str(BACKEND_DIR / "dashboard" / "static"),
 )
 
-AWS_REGION = os.getenv("AWS_REGION", "eu-west-1")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 TABLE_NAME = os.getenv("DYNAMODB_TABLE", "SensorReadings")
 SENSOR_IDS = ["VIB_001", "TEMP_001", "PRES_001", "HUM_001", "PWR_001"]
 USE_AWS = os.getenv("USE_AWS", "true").lower() == "true"
