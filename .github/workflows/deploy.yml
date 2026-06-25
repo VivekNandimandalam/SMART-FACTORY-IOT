@@ -53,22 +53,8 @@ jobs:
 
       - name: Deploy Lambda
         env:
-          LAMBDA_EXECUTION_ROLE_ARN: ${{ secrets.LAMBDA_EXECUTION_ROLE_ARN }}
+          LAMBDA_ROLE_ARN: "arn:aws:iam::323282433029:role/LabRole"
         run: |
-          if [ -n "$LAMBDA_EXECUTION_ROLE_ARN" ]; then
-            LAMBDA_ROLE_ARN="$LAMBDA_EXECUTION_ROLE_ARN"
-          else
-            LAMBDA_ROLE_ARN=$(aws iam get-role \
-              --role-name LabRole \
-              --query 'Role.Arn' \
-              --output text)
-          fi
-
-          if [ -z "$LAMBDA_ROLE_ARN" ] || [ "$LAMBDA_ROLE_ARN" = "None" ]; then
-            echo "Unable to resolve a Lambda execution role ARN."
-            exit 1
-          fi
-
           if aws lambda get-function --function-name "$LAMBDA_FUNCTION_NAME" >/dev/null 2>&1; then
             aws lambda update-function-code \
               --function-name "$LAMBDA_FUNCTION_NAME" \
