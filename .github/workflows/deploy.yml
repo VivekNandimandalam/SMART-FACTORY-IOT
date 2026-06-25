@@ -129,6 +129,24 @@ jobs:
               --environment "Variables={DYNAMODB_TABLE=$DYNAMODB_TABLE}"
           fi
 
+          for _ in $(seq 1 30); do
+            LAMBDA_STATE=$(aws lambda get-function \
+              --function-name "$LAMBDA_FUNCTION_NAME" \
+              --query 'Configuration.State' \
+              --output text)
+
+            echo "Lambda state: ${LAMBDA_STATE}"
+            if [ "$LAMBDA_STATE" = "Active" ]; then
+              break
+            fi
+            sleep 10
+          done
+
+          if [ "$LAMBDA_STATE" != "Active" ]; then
+            echo "Lambda did not become Active in time."
+            exit 1
+          fi
+
           aws lambda update-function-configuration \
             --function-name "$LAMBDA_FUNCTION_NAME" \
             --handler lambda_function.lambda_handler \
